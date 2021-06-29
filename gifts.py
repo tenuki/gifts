@@ -2,20 +2,18 @@
 from abc import abstractmethod, ABC
 from pathlib import PurePosixPath as Path
 import os
-import stat
 import errno
+import socket
+import stat
 import sys
 import unittest
-
-import git
 
 import logging
 import logging.handlers
 
-my_logger = logging.getLogger('MyLogger')
-my_logger.setLevel(logging.DEBUG)
-
-handler = logging.handlers.SysLogHandler(address='/dev/log')
+#my_logger = logging.getLogger('MyLogger')
+#my_logger.setLevel(logging.DEBUG)
+#handler = logging.handlers.SysLogHandler(address='/dev/log')
 
 
 
@@ -25,6 +23,7 @@ except ImportError:
     pass
 import fuse
 from fuse import Fuse
+import git
 from git import Repo
 
 
@@ -33,24 +32,15 @@ if not hasattr(fuse, '__version__'):
 
 fuse.fuse_python_api = (0, 2)
 
-import socket
-
-# Create a UDP socket at client side
-
 serverAddressPort = ("127.0.0.1", 2222)
 bufferSize = 1024
-# Send to server using created UDP socket
-# msgFromServer = UDPClientSocket.recvfrom(bufferSize)
-# msg = "Message from Server {}".format(msgFromServer[0])
-# print(msg)
 
-import syslog
+
 def log(*args, **kw):
     UDPClientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-    msg = 'xxxx| %s \n' % (' '.join(args))
+    msg = 'gifts| %s \n' % (' '.join(args))
     bytesToSend = str.encode(msg)
     UDPClientSocket.sendto(bytesToSend, serverAddressPort)
-    #syslog.syslog(msg)
 
 
 class MyStat(fuse.Stat):
@@ -65,10 +55,6 @@ class MyStat(fuse.Stat):
         self.st_atime = 0
         self.st_mtime = 0
         self.st_ctime = 0
-
-
-hello_path = '/hello'
-hello_str = b'Hello World!\n'
 
 
 class NoSuchDir(Exception):
@@ -137,10 +123,6 @@ class GitWrapper:
                 raise NoSuchDir()
         return final
 
-    # def read_dir(self, branch, dirname):
-    #     obj = self.get_object(branch, dirname)
-    #     return [x.name for x in obj]
-
 
 class TreeObjException(Exception):
     pass
@@ -173,7 +155,7 @@ class TreeObj(ABC):
             raise OutsideObject
 
         log("parts: %s"%str(_path.parts))  # /,branches,branch_name,etc
-        branch = bstr_to_branch(_path.parts[2])
+        branch = 'origin/'+bstr_to_branch(_path.parts[2])
         comps = _path.parts[3:]
         log("branch:", branch, "parts: %s"%str(comps))
         return RepositoryPath(w, branch, '/'.join(comps))
@@ -246,12 +228,12 @@ class RepositoryPath(TreeObj):
         return self.w.get_content(self.branch, self.path)
 
 
-REPO = '/home/aweil/repos/gifts/OMoC-SC-Shared'
+REPO = None   # '/home/aweil/repos/gifts/OMoC-SC-Shared'
 
 
 class HelloFS:
     def __init__(self):
-        #self.repo = Repo(r'/home/aweil/repos/gifts/python-fuse')
+        assert not(REPO is None)
         self.repo = Repo(REPO)
         self.w = GitWrapper(self.repo)
 
@@ -269,7 +251,6 @@ class HelloFS:
         st_file = MyStat()
         st_file.st_mode = stat.S_IFREG | 0o444
         st_file.st_nlink = 1
-        #st_file.st_size = len(hello_str)
         try:
             to = TreeObj.FromPath(self.w, path)
             if to.is_dir():
@@ -305,8 +286,6 @@ class HelloFS:
                 return -errno.ENOENT
         except:
             return -errno.ENOENT
-        # if path != hello_path:
-        #     return -errno.ENOENT
         accmode = os.O_RDONLY | os.O_WRONLY | os.O_RDWR
         if (flags & accmode) != os.O_RDONLY:
             return -errno.EACCES
@@ -392,7 +371,7 @@ class TestMore(unittest.TestCase):
         )
 
 if __name__ == '__main__':
-    repo = Repo(REPO)
-    w = GitWrapper(repo)
-    #print("branches: " , repr(w.branches()))
+    import sys
+    REPO = sys.argv.pop(1)
+    print('REPO is:', REPO)
     main()
