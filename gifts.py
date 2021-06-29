@@ -61,13 +61,16 @@ class NoSuchDir(Exception):
     pass
 
 
+
+REPLACE = u'∕'  # '__'
+
 def b_to_str(full_name):
     name = full_name.split('/', 1)[1]
-    return name.replace('/', '__')
+    return name.replace('/', REPLACE)
 
 
 def bstr_to_branch(branch):
-    return branch.replace('__', '/')
+    return branch.replace(REPLACE, '/')
 
 
 class GitWrapper:
